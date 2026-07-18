@@ -1,0 +1,23 @@
+services:
+  triton:
+    build: .
+    image: ambient-scribe:latest
+    container_name: ambient-scribe
+    command: tritonserver --model-repository=/models
+    ports:
+      - "8000:8000"   # HTTP
+      - "8001:8001"   # gRPC
+      - "8002:8002"   # metrics
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    volumes:
+      - ./model_repository:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

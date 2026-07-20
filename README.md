@@ -44,7 +44,7 @@ layout, with `config.pbtxt` one level above the version folder.
 
 ---
 
-## `mbaza_asr_nemo` (pure NeMo, start here)
+## Run the server
 
 Loads the model via NeMo and calls its own `.transcribe()` end-to-end —
 feature extraction, encoder/decoder forward pass, and CTC decode are all

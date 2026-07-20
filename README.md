@@ -1,57 +1,42 @@
-# Deploying DigitalUmuganda/Mbaza-ASR-Afrivoice-660h on Triton
+# Deploying the Kinyarwanda ASR Models
 
-`DigitalUmuganda/Mbaza-ASR-Afrivoice-660h` is a **NeMo Conformer-CTC**
-model for Kinyarwanda — not a `transformers` seq2seq model. Key
-implications for deployment:
+This repository contains production configuration setups to serve Kinyarwanda Automatic Speech Recognition (ASR) models via NVIDIA Triton Inference Server. 
 
-- Loaded via `nemo_asr.models.ASRModel.from_pretrained(...)`, not
-  `AutoModelForSpeechSeq2Seq`.
-- **CTC output, no autoregressive decoding.** The encoder produces one set
-  of logits per audio frame; decoding is a simple greedy
-  argmax-then-collapse-blanks step, not a beam-search `generate()` loop.
-- Audio feature extraction (mel-spectrogram) and the CTC decode step are
-  NeMo-specific and stay in Python at serving time even in the ONNX
-  version below — only the encoder+decoder acoustic-scoring graph gets
-  exported.
+## Models Included
 
-This repo has **two deployment options** for this model:
+1. **Mbaza-ASR (`mbaza_asr_nemo`)**
+   - **Architecture:** NeMo Conformer-CTC (`DigitalUmuganda/Mbaza-ASR-Afrivoice-660h`).
+   - **Characteristics:** CTC-based output with zero autoregressive decoding loops. Audio feature extraction (mel-spectrogram) and the CTC greedy-decode step are handled directly in Python inside Triton's execution wrapper.
+   
+2. **Whisper Kinyarwanda (`whisper_kinyarwanda`)**
+   - **Architecture:** OpenAI Whisper Seq2Seq framework fine-tuned for Kinyarwanda speech.
+   - **Characteristics:** Standard Encoder/Decoder architecture using typical autoregressive text generation parameters.
 
-| | `mbaza_asr_onnx` | `mbaza_asr_nemo` |
-|---|---|---|
-| Encoder/decoder inference | ONNX Runtime (faster) | Native NeMo/PyTorch |
-| Setup | Requires an offline export step | Works out of the box |
-| Correctness risk | Slightly higher (relies on ONNX Runtime + a hybrid pre/post-processing split) | Lowest (exact code path NeMo's maintainers test) |
-| Good for | Production, once verified | Getting started, baseline to compare ONNX output against |
+---
 
-If you're just getting started, `mbaza_asr_nemo` is the simplest path —
-jump to that section below. Use `mbaza_asr_onnx` once you've confirmed
-you need the extra speed.
+## Repo Layout
 
-There's also a **Whisper-based reference deployment** further down (a
-different, earlier model this repo was originally built around) — kept
-for comparison, not required for the Mbaza-ASR model.
+Triton requires a strict layout configuration structure. The repository is organized as follows:
 
 ## Repo layout
 
 ```
-triton_whisper_kinyarwanda/
+ambient-scribe-inference/
 ├── Dockerfile
-├── client.py
-├── export_mbaza_to_onnx.py
-├── export_to_onnx.py                    (Whisper-only, see bottom section)
+├── client.py            
 └── model_repository/
-    ├── mbaza_asr_nemo/                  <- start here
+    ├── mbaza_asr/                  
     │   ├── config.pbtxt
     │   └── 1/
     │       ├── model.py
-    │       └── model.nemo               (optional, see below)
-    ├── mbaza_asr_onnx/                   <- faster, once verified
+    │       └── model.nemo             
+    ├── whisper/                  
     │   ├── config.pbtxt
     │   └── 1/
     │       ├── model.py
-    │       └── onnx_model/               <- created by export_mbaza_to_onnx.py
-    ├── whisper_kinyarwanda/              <- reference only
-    └── whisper_kinyarwanda_onnx/         <- reference only
+    │       └── model.whisper            
+
+
 ```
 
 Triton requires this exact shape: a `model_repository/<model_name>/<version>/model.py`

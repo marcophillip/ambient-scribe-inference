@@ -1,6 +1,6 @@
 services:
   triton:
-    build: .
+    # build: .
     image: ambient-scribe:latest
     container_name: ambient-scribe
     command: tritonserver --model-repository=/models
@@ -21,3 +21,14 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+  fastapi:
+    build: ./api
+    image: ambient-scribe-api:latest
+    container_name: fastapi-server
+    environment:
+      - TRITON_URL=triton:8000
+    ports:
+      - "9000:9000"
+    depends_on:
+      - triton
+    

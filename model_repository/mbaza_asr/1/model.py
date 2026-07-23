@@ -5,26 +5,32 @@ import numpy as np
 import soundfile as sf
 import triton_python_backend_utils as pb_utils
 import nemo.collections.asr as nemo_asr
+import json
+import torch
 
-MODEL_ID = "DigitalUmuganda/Mbaza-ASR-Afrivoice-660h"
 
-# If a local .nemo checkpoint is present (e.g. mbaza_asr.nemo from your
-# earlier ONNX export step, or any other .nemo file dropped in here), use
-# it instead of downloading from the Hugging Face Hub on every cold start.
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "nemo_model")
 LOCAL_NEMO_PATH = os.path.join(MODEL_DIR, "model.nemo")
 
 
 class TritonPythonModel:
     def initialize(self, args):
+        self.model_config = json.loads(args['model_config'])
+        instance_group = self.model_config.get("instance_group", [{}])[0]
+        instance_kind = instance_group.get("kind", "KIND_CPU")
+        
+        if instance_kind == "KIND_GPU" and torch.cuda.is_available():
+            self.device = "cuda"
+        else:
+            self.device = "cpu"
         if os.path.isfile(LOCAL_NEMO_PATH):
             print(f"Loading local checkpoint from {LOCAL_NEMO_PATH} ...")
             self.model = nemo_asr.models.ASRModel.restore_from(
-                LOCAL_NEMO_PATH, map_location="cpu"
+                LOCAL_NEMO_PATH, map_location= self.device
             )
         else:
-            print(f"No local checkpoint found, downloading {MODEL_ID} from the Hub ...")
-            self.model = nemo_asr.models.ASRModel.from_pretrained(MODEL_ID)
+            print(f"No local checkpoint found, try downloading from huhuggingface ...")
+            # self.model = nemo_asr.models.ASRModel.from_pretrained(MODEL_DIR)
 
         self.model.eval()
 

@@ -5,6 +5,9 @@ import librosa
 import numpy as np
 import soundfile as sf
 import tritonclient.http as httpclient
+import io
+from pydub import AudioSegment
+import numpy as np
 
 TARGET_SR = 16000
 
@@ -21,8 +24,8 @@ def resample_audio(audio: np.ndarray, orig_sr: int, target_sr: int = TARGET_SR) 
 
 def transcribe_array(
     audio: np.ndarray,
-    model_name: str = "mbaza_asr",
-    url: str = "localhost:8000",
+    model_name: str,
+    url: str,
 ) -> str:
 
     client = httpclient.InferenceServerClient(url=url)
@@ -41,6 +44,19 @@ def transcribe_array(
     return text
 
 
+def blob_bytes_to_array(blob_bytes: bytes, target_sr: int = 16000) -> np.ndarray:
+    """Decode an arbitrary-format audio blob (webm, ogg, mp3, wav, ...)
+    into a mono float32 numpy array at target_sr, using ffmpeg under the hood."""
+    audio = AudioSegment.from_file(io.BytesIO(blob_bytes))
+    audio = audio.set_channels(1).set_frame_rate(target_sr)
+
+    samples = np.array(audio.get_array_of_samples())
+    # pydub gives int16 samples -- normalize to float32 [-1, 1]
+    audio_float32 = samples.astype(np.float32) / 32768.0
+
+    return audio_float32
+
+
 def transcribe(
     audio_path: str,
     model_name: str = "mbaza_asr",
@@ -57,11 +73,6 @@ def transcribe(
     return transcribe_array(audio, model_name=model_name, url=url)
 
 
-if __name__ == "__main__":
-    # if len(sys.argv) not in (2, 3):
-    #     print("Usage: python client.py path/to/audio.wav [model_name]")
-    #     sys.exit(1)
-
-    audio_path = sys.argv[1]
-    # model_name = sys.argv[2] if len(sys.argv) == 3 else "mbaza_asr_nemo"
-    transcribe(audio_path)
+# if __name__ == "__main__":
+#     audio_path = sys.argv[1]
+#     transcribe(audio_path)

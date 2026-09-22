@@ -1,0 +1,27 @@
+name: "mbaza_asr"
+backend: "python"
+
+max_batch_size: 0
+
+input [
+  {
+    name: "AUDIO"
+    data_type: TYPE_FP32
+    dims: [ -1 ]        # raw waveform, mono, 16kHz
+  }
+]
+
+output [
+  {
+    name: "TRANSCRIPTION"
+    data_type: TYPE_STRING
+    dims: [ 1 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU        # switch to KIND_CPU if no GPU available
+  }
+]

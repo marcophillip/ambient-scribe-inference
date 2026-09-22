@@ -1,0 +1,38 @@
+name: "nemotron_asr"
+backend: "python"
+
+max_batch_size: 0
+
+input [
+  {
+    name: "AUDIO"
+    data_type: TYPE_FP32
+    dims: [ -1 ]        # raw waveform, mono, 16kHz
+  },
+  {
+    name: "LANGUAGE"
+    data_type: TYPE_STRING
+    dims: [ 1 ]         # "en-US", "fr-FR", ... or "auto" to detect
+    optional: true
+  }
+]
+
+output [
+  {
+    name: "TRANSCRIPTION"
+    data_type: TYPE_STRING
+    dims: [ 1 ]
+  },
+  {
+    name: "LANGUAGE_DETECTED"
+    data_type: TYPE_STRING
+    dims: [ 1 ]         # empty unless the model emitted a language tag
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU        # switch to KIND_CPU if no GPU available
+  }
+]

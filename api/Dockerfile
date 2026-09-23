@@ -16,5 +16,6 @@ RUN pip install --no-cache-dir \
 
 WORKDIR /api
 COPY app.py utils.py /api/
+COPY static /api/static
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "9000"]

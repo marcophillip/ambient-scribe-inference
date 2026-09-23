@@ -3,7 +3,7 @@ services:
     build: .
     image: ambient-scribe:latest
     container_name: ambient-scribe
-    command: tritonserver --model-repository=/models
+    command: tritonserver --model-repository=/models --http-port=8003
     environment:
       - HF_TOKEN=${HF_TOKEN}
       - MBAZA_ASR=DigitalUmuganda/Mbaza-ASR-Afrivoice-660h
@@ -11,7 +11,7 @@ services:
       - NEMOTRON_TARGET_LANG=auto        # or en-US / fr-FR to pin a language
       - NEMOTRON_ATT_CONTEXT_SIZE=[56,13]  # 1.12s lookahead: best WER
     ports:
-      - "8000:8000"   # HTTP
+      - "8003:8003"   # HTTP
       - "8001:8001"   # gRPC
       - "8002:8002"   # metrics
     ipc: host
@@ -21,7 +21,7 @@ services:
     volumes:
       - ./model_repository:/models
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v2/health/ready')"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/v2/health/ready')"]
       interval: 10s
       timeout: 120s
       retries: 10
@@ -39,7 +39,7 @@ services:
     image: ambient-scribe-api:latest
     container_name: fastapi-server
     environment:
-      - TRITON_URL=triton:8000      
+      - TRITON_URL=triton:8003      
     volumes:
       - ./api:/app                     # live-edit app.py/utils.py without rebuilding
     ports:

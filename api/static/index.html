@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ambient Scribe</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --text: #1b1f24; --muted: #6b7280;
+    --border: #e2e5ea; --accent: #2563eb; --danger: #dc2626; --ok: #16a34a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --card: #181b21; --text: #e6e8eb; --muted: #9aa1ab;
+      --border: #2a2f37; --accent: #3b82f6; --danger: #ef4444; --ok: #22c55e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  select, input[type=file] {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-width: 160px;
+  }
+  button {
+    font: inherit; font-weight: 600; border: 0; border-radius: 8px;
+    padding: 10px 18px; cursor: pointer; background: var(--accent); color: #fff;
+  }
+  button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  button.recording { background: var(--danger); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-top: 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--danger); }
+  .dot.live { background: var(--danger); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  canvas { width: 100%; height: 60px; display: block; margin-top: 14px; }
+  audio { width: 100%; margin-top: 14px; }
+  .result { white-space: pre-wrap; min-height: 3em; }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .error { color: var(--danger); }
+  .history-item { border-top: 1px solid var(--border); padding: 10px 0; }
+  .history-item:first-child { border-top: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ambient Scribe</h1>
+  <p class="sub">Record or upload audio and send it to the ASR backend.</p>
+
+  <div class="card">
+    <div class="row">
+      <label>Model
+        <select id="model"><option value="nemotron_asr">nemotron_asr</option></select>
+      </label>
+      <label>Language
+        <select id="language">
+          <option value="auto">Auto-detect</option>
+          <option value="en-US">English (en-US)</option>
+          <option value="fr-FR">French (fr-FR)</option>
+        </select>
+      </label>
+    </div>
+    <div class="status"><span class="dot" id="healthDot"></span><span id="healthText">Checking backend…</span></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button id="recordBtn">● Record</button>
+      <button id="sendBtn" class="secondary" disabled>Send recording</button>
+      <span id="timer" class="meta" style="margin:0">00:00</span>
+    </div>
+    <canvas id="viz"></canvas>
+    <audio id="playback" controls hidden></audio>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label>Or upload a file
+        <input type="file" id="fileInput" accept="audio/*,video/webm">
+      </label>
+      <button id="uploadBtn" class="secondary" disabled>Send file</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong>Transcription</strong>
+    <div id="result" class="result meta">Nothing yet.</div>
+    <div id="resultMeta" class="meta"></div>
+  </div>
+
+  <div class="card" id="historyCard" hidden>
+    <strong>History</strong>
+    <div id="history"></div>
+  </div>
+</main>
+
+<script>
+// Same origin as the FastAPI app by default. Override with ?api=http://host:9000
+const API_BASE = new URLSearchParams(location.search).get("api") || "";
+
+const $ = (id) => document.getElementById(id);
+const modelSel = $("model"), langSel = $("language");
+const recordBtn = $("recordBtn"), sendBtn = $("sendBtn"), timerEl = $("timer");
+const fileInput = $("fileInput"), uploadBtn = $("uploadBtn");
+const playback = $("playback"), canvas = $("viz");
+
+let mediaRecorder = null, chunks = [], recordedBlob = null;
+let stream = null, audioCtx = null, rafId = null, timerId = null, startedAt = 0;
+
+// ---------- backend status ----------
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API_BASE}/health`);
+    const j = await r.json();
+    const ok = r.ok && j.status === "healthy";
+    $("healthDot").className = "dot " + (ok ? "ok" : "bad");
+    $("healthText").textContent = ok ? "Backend healthy" : `Backend unhealthy: ${JSON.stringify(j)}`;
+  } catch (e) {
+    $("healthDot").className = "dot bad";
+    $("healthText").textContent = `Backend unreachable (${e.message})`;
+  }
+}
+
+async function loadModels() {
+  try {
+    const r = await fetch(`${API_BASE}/models`);
+    const j = await r.json();
+    if (!Array.isArray(j.models) || !j.models.length) return;
+    const current = modelSel.value;
+    modelSel.innerHTML = j.models.map((m) => `<option value="${m}">${m}</option>`).join("");
+    if (j.models.includes(current)) modelSel.value = current;
+  } catch { /* keep the default option */ }
+}
+
+// Language only matters for prompted models (see PROMPTED_MODELS in app.py)
+modelSel.addEventListener("change", () => {
+  langSel.disabled = modelSel.value !== "nemotron_asr";
+});
+
+// ---------- recording ----------
+function pickMimeType() {
+  const types = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
+  return types.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
+}
+
+async function startRecording() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showError("Microphone access needs a secure context (https or http://localhost).");
+    return;
+  }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+    });
+  } catch (e) {
+    showError(`Microphone permission denied: ${e.message}`);
+    return;
+  }
+
+  const mimeType = pickMimeType();
+  mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  chunks = [];
+  mediaRecorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  mediaRecorder.onstop = () => {
+    recordedBlob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
+    playback.src = URL.createObjectURL(recordedBlob);
+    playback.hidden = false;
+    sendBtn.disabled = false;
+  };
+  mediaRecorder.start(250);
+
+  startVisualizer(stream);
+  startedAt = Date.now();
+  timerId = setInterval(updateTimer, 200);
+  recordBtn.textContent = "■ Stop";
+  recordBtn.classList.add("recording");
+  sendBtn.disabled = true;
+}
+
+function stopRecording() {
+  mediaRecorder?.state !== "inactive" && mediaRecorder.stop();
+  stream?.getTracks().forEach((t) => t.stop());
+  stopVisualizer();
+  clearInterval(timerId);
+  recordBtn.textContent = "● Record";
+  recordBtn.classList.remove("recording");
+}
+
+function updateTimer() {
+  const s = Math.floor((Date.now() - startedAt) / 1000);
+  timerEl.textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+recordBtn.addEventListener("click", () => {
+  mediaRecorder?.state === "recording" ? stopRecording() : startRecording();
+});
+
+sendBtn.addEventListener("click", () => {
+  if (!recordedBlob) return;
+  const ext = recordedBlob.type.includes("ogg") ? "ogg" : recordedBlob.type.includes("mp4") ? "m4a" : "webm";
+  sendAudio(recordedBlob, `recording.${ext}`, sendBtn);
+});
+
+// ---------- file upload ----------
+fileInput.addEventListener("change", () => { uploadBtn.disabled = !fileInput.files.length; });
+uploadBtn.addEventListener("click", () => {
+  const f = fileInput.files[0];
+  if (f) sendAudio(f, f.name, uploadBtn);
+});
+
+// ---------- send to backend ----------
+async function sendAudio(blob, filename, btn) {
+  const form = new FormData();
+  form.append("file", blob, filename);
+  form.append("model_name", modelSel.value);
+  form.append("language", langSel.value);
+
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Transcribing…";
+  $("result").className = "result meta";
+  $("result").textContent = "Transcribing…";
+  $("resultMeta").textContent = "";
+  const t0 = performance.now();
+
+  try {
+    const r = await fetch(`${API_BASE}/transcribe`, { method: "POST", body: form });
+    const text = await r.text();
+    let j;
+    try { j = JSON.parse(text); } catch { throw new Error(`HTTP ${r.status}: ${text.slice(0, 300)}`); }
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${j.detail ? JSON.stringify(j.detail) : text}`);
+
+    const secs = ((performance.now() - t0) / 1000).toFixed(2);
+    const meta = [`model: ${j.model}`, j.language && `language: ${j.language}`,
+                  `${(blob.size / 1024).toFixed(0)} KB`, `${secs}s`].filter(Boolean).join(" · ");
+    $("result").className = "result";
+    $("result").textContent = j.transcription || "(empty transcription)";
+    $("resultMeta").textContent = meta;
+    addHistory(j.transcription, meta);
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    btn.textContent = label;
+    btn.disabled = false;
+  }
+}
+
+function showError(msg) {
+  $("result").className = "result error";
+  $("result").textContent = msg;
+}
+
+function addHistory(text, meta) {
+  $("historyCard").hidden = false;
+  const item = document.createElement("div");
+  item.className = "history-item";
+  item.innerHTML = `<div></div><div class="meta"></div>`;
+  item.children[0].textContent = text;
+  item.children[1].textContent = `${new Date().toLocaleTimeString()} · ${meta}`;
+  $("history").prepend(item);
+}
+
+// ---------- level visualizer ----------
+function startVisualizer(s) {
+  audioCtx = new AudioContext();
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 1024;
+  audioCtx.createMediaStreamSource(s).connect(analyser);
+  const data = new Uint8Array(analyser.fftSize);
+  const ctx = canvas.getContext("2d");
+  const color = getComputedStyle(document.documentElement).getPropertyValue("--accent");
+
+  const draw = () => {
+    canvas.width = canvas.clientWidth * devicePixelRatio;
+    canvas.height = canvas.clientHeight * devicePixelRatio;
+    analyser.getByteTimeDomainData(data);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineWidth = 2 * devicePixelRatio;
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    for (let i = 0; i < data.length; i++) {
+      const x = (i / data.length) * canvas.width;
+      const y = (data[i] / 255) * canvas.height;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+    rafId = requestAnimationFrame(draw);
+  };
+  draw();
+}
+
+function stopVisualizer() {
+  cancelAnimationFrame(rafId);
+  audioCtx?.close();
+  canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+}
+
+checkHealth();
+loadModels();
+</script>
+</body>
+</html>

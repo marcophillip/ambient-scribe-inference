@@ -1,15 +1,33 @@
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
 from tritonclient import http as httpclient
 from utils import transcribe_array, blob_bytes_to_array
 import os
 
-TRITON_URL = os.environ.get("TRITON_URL", "triton:8000")
+TRITON_URL = os.environ.get("TRITON_URL", "triton:8003")
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 app = FastAPI(
     title="Ambient Scribe API",
     description="API for Ambient Scribe ASR model"
 )
+
+# allow the frontend to be opened from another origin (e.g. a local file or dev server)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/", include_in_schema=False)
+async def frontend():
+    """
+    serve the recording / upload frontend
+    """
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
 @app.get("/health")
@@ -47,7 +65,6 @@ async def list_models():
 
 DEFAULT_MODEL = os.environ.get("DEFAULT_ASR_MODEL", "nemotron_asr")
 
-# Models that take a language-ID prompt. Others ignore the `language` form field.
 PROMPTED_MODELS = {"nemotron_asr"}
 
 
@@ -59,9 +76,7 @@ async def from_frontend(
 ):
     """Transcribe an uploaded audio blob.
 
-    `language` applies to prompt-conditioned models such as nemotron_asr:
-    pass a locale ("en-US", "fr-FR") to pin it, or "auto" to detect and
-    return the detected locale alongside the text.
+    `language` can be fr-FR or en-EN or auto to auto-detect the language
     """
     blob_bytes = await file.read()
     audio_array = blob_bytes_to_array(blob_bytes)   # already 16kHz mono float32

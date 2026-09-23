@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN pip install --no-cache-dir Cython packaging
 RUN pip install --no-cache-dir \
-    "nemo_toolkit[asr] @ git+https://github.com/NVIDIA/NeMo.git@main" \
+    "nemo_toolkit[asr]" \
     "transformers>=5.13.0" \
     soundfile \
     librosa \

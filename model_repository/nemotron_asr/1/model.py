@@ -1,10 +1,8 @@
 import json
 import os
 import re
-import tempfile
 
 import numpy as np
-import soundfile as sf
 import torch
 import triton_python_backend_utils as pb_utils
 import nemo.collections.asr as nemo_asr
@@ -81,6 +79,43 @@ class TritonPythonModel:
 
         self.model.eval()
 
+        # language -> prompt index, e.g. {"en-US": 0, "fr-FR": 8, "auto": 101}
+        self.prompt_dict = dict(self.model.cfg.model_defaults.prompt_dictionary)
+
+    @torch.no_grad()
+    def _transcribe(self, audio_array: np.ndarray, target_lang: str) -> str:
+        """Run the encoder + RNNT decoder directly with an explicit prompt index.
+
+        model.transcribe() is not used: its Lhotse dataset derives the prompt
+        from a random "unified" mode (crashing with "Unknown prompt key: 'None'"
+        about half the time) and overrides target_lang when it does succeed.
+        """
+        if target_lang not in self.prompt_dict:
+            raise ValueError(
+                f"Unsupported LANGUAGE '{target_lang}'. "
+                f"Use 'auto' or one of: {sorted(k for k in self.prompt_dict if k != 'auto')}"
+            )
+
+        signal = torch.from_numpy(audio_array).unsqueeze(0).to(self.device)
+        signal_len = torch.tensor([signal.shape[1]], dtype=torch.long, device=self.device)
+        prompt_indices = torch.tensor(
+            [self.prompt_dict[target_lang]], dtype=torch.long, device=self.device
+        )
+
+        encoded, encoded_len = self.model.forward(
+            input_signal=signal, input_signal_length=signal_len, prompt_indices=prompt_indices
+        )
+        hypotheses = self.model.decoding.rnnt_decoder_predictions_tensor(
+            encoder_output=encoded, encoded_lengths=encoded_len, return_hypotheses=False
+        )
+
+        # Return shape has varied across nemo_toolkit versions -- older ones
+        # return a (best, all) tuple, items may be str or Hypothesis objects.
+        if isinstance(hypotheses, tuple):
+            hypotheses = hypotheses[0]
+        first = hypotheses[0]
+        return first if isinstance(first, str) else getattr(first, "text", str(first))
+
     def execute(self, requests):
         responses = []
 
@@ -97,20 +132,11 @@ class TritonPythonModel:
                 target_lang = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
                 target_lang = target_lang.strip() or DEFAULT_TARGET_LANG
 
-            # transcribe() takes file paths, not in-memory arrays -- its
-            # accepted input types have varied across nemo_toolkit
-            # versions, so a temp WAV file is the most stable option.
-            with tempfile.NamedTemporaryFile(suffix=".wav") as tmp:
-                sf.write(tmp.name, audio_array, samplerate=16000)
-                hypotheses = self.model.transcribe(
-                    [tmp.name], target_lang=target_lang, verbose=False
-                )
-
-            # Return shape has varied across nemo_toolkit versions --
-            # handle both a plain list[str] and a list of Hypothesis-like
-            # objects.
-            first = hypotheses[0]
-            transcription = first if isinstance(first, str) else getattr(first, "text", str(first))
+            try:
+                transcription = self._transcribe(audio_array, target_lang)
+            except ValueError as e:
+                responses.append(pb_utils.InferenceResponse(error=pb_utils.TritonError(str(e))))
+                continue
 
             match = LANG_TAG_RE.search(transcription)
             if match:

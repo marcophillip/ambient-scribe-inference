@@ -72,8 +72,10 @@ def blob_bytes_to_array(blob_bytes: bytes, target_sr: int = 16000) -> np.ndarray
     audio = audio.set_channels(1).set_frame_rate(target_sr)
 
     samples = np.array(audio.get_array_of_samples())
-    # pydub gives int16 samples -- normalize to float32 [-1, 1]
-    audio_float32 = samples.astype(np.float32) / 32768.0
+    # sample width depends on the source: wav/flac decode to int16, but
+    # browser webm/opus decodes to int32 -- normalize by the actual width
+    full_scale = float(1 << (8 * audio.sample_width - 1))
+    audio_float32 = samples.astype(np.float32) / full_scale
 
     return audio_float32
 

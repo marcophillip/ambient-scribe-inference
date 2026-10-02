@@ -12,10 +12,11 @@ RUN pip install --no-cache-dir \
     pydub \
     numpy \
     tritonclient[http]\
-    librosa
+    librosa\
+    openai
 
 WORKDIR /api
-COPY app.py utils.py /api/
+COPY app.py utils.py prompts.py /api/
 COPY static /api/static
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "9000"]

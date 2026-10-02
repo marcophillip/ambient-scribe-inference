@@ -6,64 +6,157 @@
 <title>Ambient Scribe</title>
 <style>
   :root {
-    --bg: #f6f7f9; --card: #fff; --text: #1b1f24; --muted: #6b7280;
-    --border: #e2e5ea; --accent: #2563eb; --danger: #dc2626; --ok: #16a34a;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0f1115; --card: #181b21; --text: #e6e8eb; --muted: #9aa1ab;
-      --border: #2a2f37; --accent: #3b82f6; --danger: #ef4444; --ok: #22c55e;
-    }
+    --bg: #ffffff; --card: #ffffff; --text: #1a1f2e; --muted: #5f6675;
+    --border: #e4e7ee; --soft: #f5f7fb;
+    --primary: #3048a8; --primary-hover: #26398a; --gold: #a8862a;
+    --danger: #c62828; --ok: #2e7d32;
+    --shadow: 0 1px 2px rgba(20, 30, 60, .05), 0 2px 8px rgba(20, 30, 60, .05);
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
-  main { max-width: 760px; margin: 0 auto; padding: 32px 16px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 24px; }
+
+  /* ---------- header ---------- */
+  header {
+    background: #fff; border-bottom: 3px solid var(--primary);
+    box-shadow: var(--shadow);
+  }
+  .header-inner {
+    max-width: 960px; margin: 0 auto; padding: 12px 16px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .logo { height: 48px; width: auto; max-width: 100%; }
+  .header-status { margin-left: auto; }
+  .title-bar { max-width: 960px; margin: 0 auto; padding: 24px 16px 8px; }
+  h1 { font-size: 24px; margin: 0; color: var(--primary); }
+  .sub { color: var(--muted); margin: 2px 0 0; }
+  .sub b { color: var(--gold); font-weight: 600; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 8px 16px 48px; }
   .card {
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+    border-radius: 12px; padding: 20px; margin-top: 16px; box-shadow: var(--shadow);
   }
-  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+  .card-head h2 { font-size: 16px; margin: 0; }
+  .step {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%; margin-right: 8px;
+    background: var(--primary); color: #fff; font-size: 12px; font-weight: 700;
+  }
+
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } .logo { height: 36px; } }
+
   label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
   select, input[type=file] {
-    font: inherit; color: var(--text); background: var(--bg);
-    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-width: 160px;
+    font: inherit; color: var(--text); background: #fff;
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-width: 180px;
   }
+  select:focus, input:focus, button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
   button {
-    font: inherit; font-weight: 600; border: 0; border-radius: 8px;
-    padding: 10px 18px; cursor: pointer; background: var(--accent); color: #fff;
+    font: inherit; font-weight: 600; border: 1px solid transparent; border-radius: 8px;
+    padding: 10px 18px; cursor: pointer; background: var(--primary); color: #fff;
   }
-  button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  button:hover:not(:disabled) { background: var(--primary-hover); }
+  button.secondary { background: #fff; color: var(--primary); border-color: var(--primary); }
+  button.secondary:hover:not(:disabled) { background: var(--soft); }
+  button.ghost { background: transparent; color: var(--muted); border-color: var(--border); padding: 4px 10px; font-size: 13px; font-weight: 500; }
+  button.ghost:hover:not(:disabled) { background: var(--soft); color: var(--text); }
   button.recording { background: var(--danger); }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-top: 14px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  button.recording:hover:not(:disabled) { background: #a31f1f; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  .tabs { display: flex; gap: 4px; background: var(--soft); padding: 4px; border-radius: 10px; width: fit-content; margin-bottom: 16px; }
+  .tabs button { background: transparent; color: var(--muted); padding: 6px 14px; font-weight: 500; }
+  .tabs button.active { background: #fff; color: var(--primary); box-shadow: var(--shadow); font-weight: 600; }
+  .tabs button:hover:not(.active) { background: transparent; color: var(--text); }
+
+  .status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #b8bec9; }
   .dot.ok { background: var(--ok); } .dot.bad { background: var(--danger); }
   .dot.live { background: var(--danger); animation: pulse 1s infinite; }
   @keyframes pulse { 50% { opacity: .3; } }
-  canvas { width: 100%; height: 60px; display: block; margin-top: 14px; }
+
+  .timer { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
+  canvas { width: 100%; height: 56px; display: block; margin-top: 14px; background: var(--soft); border-radius: 8px; }
   audio { width: 100%; margin-top: 14px; }
-  .result { white-space: pre-wrap; min-height: 3em; }
-  .meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
-  .error { color: var(--danger); }
-  .history-item { border-top: 1px solid var(--border); padding: 10px 0; }
-  .history-item:first-child { border-top: 0; }
+  .source-label { font-size: 13px; color: var(--muted); margin-top: 12px; }
+
+  .output { white-space: pre-wrap; min-height: 6em; font-size: 15px; }
+  .output.placeholder { color: var(--muted); font-style: italic; }
+  .output.error { color: var(--danger); font-style: normal; }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+  /* rendered markdown from the LLM */
+  .notes { white-space: normal; }
+  .notes h3 { font-size: 15px; color: var(--primary); margin: 14px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+  .notes h3:first-child { margin-top: 0; }
+  .notes p { margin: 6px 0; }
+  .notes ul, .notes ol { margin: 6px 0; padding-left: 22px; }
+  .notes li { margin: 3px 0; }
+
+  .spinner {
+    width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--primary);
+    border-radius: 50%; display: inline-block; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .history-item { border-top: 1px solid var(--border); padding: 12px 0; }
+  .history-item:first-child { border-top: 0; padding-top: 0; }
+  .history-item details summary { cursor: pointer; color: var(--primary); font-size: 13px; margin-top: 4px; }
+
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 16px; border-top: 1px solid var(--border); }
 </style>
 </head>
 <body>
-<main>
-  <h1>Ambient Scribe</h1>
-  <p class="sub">Record or upload audio and send it to the ASR backend.</p>
+<header>
+  <div class="header-inner">
+    <img class="logo" src="static/moh-hic-logo.png" alt="Republic of Rwanda, Ministry of Health, Health Intelligence Center">
+    <div class="header-status status"><span class="dot" id="healthDot"></span><span id="healthText">Checking backend…</span></div>
+  </div>
+</header>
 
-  <div class="card">
-    <div class="row">
-      <label>Model
-        <select id="model"><option value="nemotron_asr">nemotron_asr</option></select>
+<div class="title-bar">
+  <h1>Ambient Scribe</h1>
+  <p class="sub">Clinical documentation assistant — record a consultation, get a transcript and <b>structured notes</b>.</p>
+</div>
+
+<main>
+  <!-- step 1: audio -->
+  <section class="card">
+    <div class="card-head"><h2><span class="step">1</span>Audio</h2></div>
+    <div class="tabs" role="tablist">
+      <button id="tabRecord" class="active" role="tab">Record</button>
+      <button id="tabUpload" role="tab">Upload file</button>
+    </div>
+
+    <div id="panelRecord">
+      <div class="row">
+        <button id="recordBtn">● Start recording</button>
+        <span id="timer" class="timer">00:00</span>
+      </div>
+      <canvas id="viz"></canvas>
+    </div>
+
+    <div id="panelUpload" hidden>
+      <label>Audio file (wav, mp3, webm, ogg, m4a, flac…)
+        <input type="file" id="fileInput" accept="audio/*,video/webm">
       </label>
+    </div>
+
+    <audio id="playback" controls hidden></audio>
+    <div id="sourceLabel" class="source-label">No audio yet.</div>
+  </section>
+
+  <!-- step 2: process -->
+  <section class="card">
+    <div class="card-head"><h2><span class="step">2</span>Process</h2></div>
+    <div class="row">
       <label>Language
         <select id="language">
           <option value="auto">Auto-detect</option>
@@ -72,52 +165,56 @@
         </select>
       </label>
     </div>
-    <div class="status"><span class="dot" id="healthDot"></span><span id="healthText">Checking backend…</span></div>
-  </div>
-
-  <div class="card">
-    <div class="row">
-      <button id="recordBtn">● Record</button>
-      <button id="sendBtn" class="secondary" disabled>Send recording</button>
-      <span id="timer" class="meta" style="margin:0">00:00</span>
+    <div class="row" style="margin-top:14px">
+      <button id="structureBtn" disabled>Transcribe &amp; structure</button>
+      <button id="transcribeBtn" class="secondary" disabled>Transcribe only</button>
+      <span id="progress" class="meta" style="margin:0"></span>
     </div>
-    <canvas id="viz"></canvas>
-    <audio id="playback" controls hidden></audio>
+  </section>
+
+  <!-- step 3: results -->
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-head">
+        <h2><span class="step">3</span>Transcript</h2>
+        <button class="ghost" data-copy="transcript">Copy</button>
+      </div>
+      <div id="transcript" class="output placeholder">The transcript will appear here.</div>
+      <div id="transcriptMeta" class="meta"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Structured notes</h2>
+        <button class="ghost" data-copy="notes">Copy</button>
+      </div>
+      <div id="notes" class="output notes placeholder">Use “Transcribe &amp; structure” to generate notes.</div>
+      <div id="notesMeta" class="meta"></div>
+    </section>
   </div>
 
-  <div class="card">
-    <div class="row">
-      <label>Or upload a file
-        <input type="file" id="fileInput" accept="audio/*,video/webm">
-      </label>
-      <button id="uploadBtn" class="secondary" disabled>Send file</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <strong>Transcription</strong>
-    <div id="result" class="result meta">Nothing yet.</div>
-    <div id="resultMeta" class="meta"></div>
-  </div>
-
-  <div class="card" id="historyCard" hidden>
-    <strong>History</strong>
+  <section class="card" id="historyCard" hidden>
+    <div class="card-head"><h2>History (this session)</h2></div>
     <div id="history"></div>
-  </div>
+  </section>
 </main>
+
+<footer>Ministry of Health · Health Intelligence Center — generated notes must be reviewed by a clinician before use.</footer>
 
 <script>
 // Same origin as the FastAPI app by default. Override with ?api=http://host:9000
 const API_BASE = new URLSearchParams(location.search).get("api") || "";
 
 const $ = (id) => document.getElementById(id);
-const modelSel = $("model"), langSel = $("language");
-const recordBtn = $("recordBtn"), sendBtn = $("sendBtn"), timerEl = $("timer");
-const fileInput = $("fileInput"), uploadBtn = $("uploadBtn");
-const playback = $("playback"), canvas = $("viz");
+const langSel = $("language");
+const recordBtn = $("recordBtn"), timerEl = $("timer");
+const structureBtn = $("structureBtn"), transcribeBtn = $("transcribeBtn");
+const fileInput = $("fileInput"), playback = $("playback"), canvas = $("viz");
 
-let mediaRecorder = null, chunks = [], recordedBlob = null;
-let stream = null, audioCtx = null, rafId = null, timerId = null, startedAt = 0;
+let mediaRecorder = null, chunks = [], stream = null, audioCtx = null;
+let rafId = null, timerId = null, startedAt = 0;
+let currentAudio = null;      // { blob, filename }
+let rawNotes = "";            // unrendered markdown, for copy
 
 // ---------- backend status ----------
 async function checkHealth() {
@@ -126,28 +223,33 @@ async function checkHealth() {
     const j = await r.json();
     const ok = r.ok && j.status === "healthy";
     $("healthDot").className = "dot " + (ok ? "ok" : "bad");
-    $("healthText").textContent = ok ? "Backend healthy" : `Backend unhealthy: ${JSON.stringify(j)}`;
+    $("healthText").textContent = ok ? "Service online" : "Service unhealthy";
+    $("healthText").title = ok ? "" : JSON.stringify(j);
   } catch (e) {
     $("healthDot").className = "dot bad";
-    $("healthText").textContent = `Backend unreachable (${e.message})`;
+    $("healthText").textContent = "Service unreachable";
+    $("healthText").title = e.message;
   }
 }
 
-async function loadModels() {
-  try {
-    const r = await fetch(`${API_BASE}/models`);
-    const j = await r.json();
-    if (!Array.isArray(j.models) || !j.models.length) return;
-    const current = modelSel.value;
-    modelSel.innerHTML = j.models.map((m) => `<option value="${m}">${m}</option>`).join("");
-    if (j.models.includes(current)) modelSel.value = current;
-  } catch { /* keep the default option */ }
+// ---------- tabs ----------
+function showTab(which) {
+  const rec = which === "record";
+  $("tabRecord").classList.toggle("active", rec);
+  $("tabUpload").classList.toggle("active", !rec);
+  $("panelRecord").hidden = !rec;
+  $("panelUpload").hidden = rec;
 }
+$("tabRecord").addEventListener("click", () => showTab("record"));
+$("tabUpload").addEventListener("click", () => showTab("upload"));
 
-// Language only matters for prompted models (see PROMPTED_MODELS in app.py)
-modelSel.addEventListener("change", () => {
-  langSel.disabled = modelSel.value !== "nemotron_asr";
-});
+function setAudio(blob, filename, label) {
+  currentAudio = { blob, filename };
+  playback.src = URL.createObjectURL(blob);
+  playback.hidden = false;
+  $("sourceLabel").textContent = `${label} · ${(blob.size / 1024).toFixed(0)} KB`;
+  structureBtn.disabled = transcribeBtn.disabled = false;
+}
 
 // ---------- recording ----------
 function pickMimeType() {
@@ -157,7 +259,7 @@ function pickMimeType() {
 
 async function startRecording() {
   if (!navigator.mediaDevices?.getUserMedia) {
-    showError("Microphone access needs a secure context (https or http://localhost).");
+    $("sourceLabel").innerHTML = '<span class="output error">Microphone access needs a secure context (https or http://localhost). You can still upload a file.</span>';
     return;
   }
   try {
@@ -165,7 +267,9 @@ async function startRecording() {
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
     });
   } catch (e) {
-    showError(`Microphone permission denied: ${e.message}`);
+    $("sourceLabel").innerHTML = "";
+    $("sourceLabel").append(Object.assign(document.createElement("span"),
+      { className: "output error", textContent: `Microphone permission denied: ${e.message}` }));
     return;
   }
 
@@ -174,27 +278,28 @@ async function startRecording() {
   chunks = [];
   mediaRecorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   mediaRecorder.onstop = () => {
-    recordedBlob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
-    playback.src = URL.createObjectURL(recordedBlob);
-    playback.hidden = false;
-    sendBtn.disabled = false;
+    const type = mediaRecorder.mimeType || "audio/webm";
+    const ext = type.includes("ogg") ? "ogg" : type.includes("mp4") ? "m4a" : "webm";
+    setAudio(new Blob(chunks, { type }), `recording.${ext}`, `Recording (${timerEl.textContent})`);
   };
   mediaRecorder.start(250);
 
   startVisualizer(stream);
   startedAt = Date.now();
+  updateTimer();
   timerId = setInterval(updateTimer, 200);
-  recordBtn.textContent = "■ Stop";
+  recordBtn.textContent = "■ Stop recording";
   recordBtn.classList.add("recording");
-  sendBtn.disabled = true;
+  structureBtn.disabled = transcribeBtn.disabled = true;
+  $("sourceLabel").innerHTML = '<span class="status"><span class="dot live"></span>Recording…</span>';
 }
 
 function stopRecording() {
-  mediaRecorder?.state !== "inactive" && mediaRecorder.stop();
+  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
   stream?.getTracks().forEach((t) => t.stop());
   stopVisualizer();
   clearInterval(timerId);
-  recordBtn.textContent = "● Record";
+  recordBtn.textContent = "● Start recording";
   recordBtn.classList.remove("recording");
 }
 
@@ -207,68 +312,144 @@ recordBtn.addEventListener("click", () => {
   mediaRecorder?.state === "recording" ? stopRecording() : startRecording();
 });
 
-sendBtn.addEventListener("click", () => {
-  if (!recordedBlob) return;
-  const ext = recordedBlob.type.includes("ogg") ? "ogg" : recordedBlob.type.includes("mp4") ? "m4a" : "webm";
-  sendAudio(recordedBlob, `recording.${ext}`, sendBtn);
-});
-
 // ---------- file upload ----------
-fileInput.addEventListener("change", () => { uploadBtn.disabled = !fileInput.files.length; });
-uploadBtn.addEventListener("click", () => {
+fileInput.addEventListener("change", () => {
   const f = fileInput.files[0];
-  if (f) sendAudio(f, f.name, uploadBtn);
+  if (f) setAudio(f, f.name, f.name);
 });
 
 // ---------- send to backend ----------
-async function sendAudio(blob, filename, btn) {
+structureBtn.addEventListener("click", () => process("/structure"));
+transcribeBtn.addEventListener("click", () => process("/transcribe"));
+
+async function process(endpoint) {
+  if (!currentAudio) return;
+  const structuring = endpoint === "/structure";
   const form = new FormData();
-  form.append("file", blob, filename);
-  form.append("model_name", modelSel.value);
+  form.append("file", currentAudio.blob, currentAudio.filename);
   form.append("language", langSel.value);
 
-  const label = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = "Transcribing…";
-  $("result").className = "result meta";
-  $("result").textContent = "Transcribing…";
-  $("resultMeta").textContent = "";
+  structureBtn.disabled = transcribeBtn.disabled = recordBtn.disabled = true;
+  $("progress").innerHTML = `<span class="spinner"></span>${structuring ? "Transcribing &amp; structuring…" : "Transcribing…"}`;
+  setOutput("transcript", "Working…", "placeholder");
+  $("transcriptMeta").textContent = "";
+  if (structuring) { setOutput("notes", "Working…", "placeholder"); $("notesMeta").textContent = ""; }
   const t0 = performance.now();
 
   try {
-    const r = await fetch(`${API_BASE}/transcribe`, { method: "POST", body: form });
+    const r = await fetch(`${API_BASE}${endpoint}`, { method: "POST", body: form });
     const text = await r.text();
     let j;
     try { j = JSON.parse(text); } catch { throw new Error(`HTTP ${r.status}: ${text.slice(0, 300)}`); }
-    if (!r.ok) throw new Error(`HTTP ${r.status}: ${j.detail ? JSON.stringify(j.detail) : text}`);
 
-    const secs = ((performance.now() - t0) / 1000).toFixed(2);
-    const meta = [`model: ${j.model}`, j.language && `language: ${j.language}`,
-                  `${(blob.size / 1024).toFixed(0)} KB`, `${secs}s`].filter(Boolean).join(" · ");
-    $("result").className = "result";
-    $("result").textContent = j.transcription || "(empty transcription)";
-    $("resultMeta").textContent = meta;
-    addHistory(j.transcription, meta);
+    // /structure returns the transcript even when the LLM step fails
+    if (j.transcription === undefined) {
+      throw new Error(j.detail ? (typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail)) : `HTTP ${r.status}`);
+    }
+
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    const meta = [j.language && `language: ${j.language}`, j.model && `ASR: ${j.model}`, `${secs}s`]
+      .filter(Boolean).join(" · ");
+    setOutput("transcript", j.transcription || "(empty transcription — check the audio level)", j.transcription ? "" : "placeholder");
+    $("transcriptMeta").textContent = meta;
+
+    let notes = null;
+    if (structuring) {
+      if (j.structured_notes) {
+        notes = j.structured_notes;
+        rawNotes = notes;
+        $("notes").className = "output notes";
+        $("notes").innerHTML = renderMarkdown(notes);
+        $("notesMeta").textContent = `generated in ${secs}s · review before use`;
+      } else {
+        setOutput("notes", j.detail || "No notes returned.", "error");
+      }
+    }
+    addHistory(j.transcription, notes, meta);
   } catch (e) {
-    showError(e.message);
+    setOutput("transcript", e.message, "error");
+    if (structuring) setOutput("notes", "Not generated.", "placeholder");
   } finally {
-    btn.textContent = label;
-    btn.disabled = false;
+    $("progress").textContent = "";
+    structureBtn.disabled = transcribeBtn.disabled = recordBtn.disabled = false;
   }
 }
 
-function showError(msg) {
-  $("result").className = "result error";
-  $("result").textContent = msg;
+function setOutput(id, text, cls) {
+  const el = $(id);
+  el.className = `output${id === "notes" ? " notes" : ""}${cls ? " " + cls : ""}`;
+  el.textContent = text;
+  if (id === "notes") rawNotes = cls ? "" : text;
 }
 
-function addHistory(text, meta) {
+// ---------- minimal, escape-first markdown renderer ----------
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function inline(s) {
+  return escapeHtml(s)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, "$1<em>$2</em>");
+}
+function renderMarkdown(md) {
+  const out = [];
+  let list = null;   // "ul" | "ol"
+  const closeList = () => { if (list) { out.push(`</${list}>`); list = null; } };
+
+  for (const raw of md.split(/\r?\n/)) {
+    const line = raw.trim();
+    let m;
+    if (!line) { closeList(); continue; }
+    if ((m = line.match(/^#{1,6}\s+(.*)$/)) || (m = line.match(/^\*\*([^*]+?):?\*\*:?$/))) {
+      closeList(); out.push(`<h3>${inline(m[1].replace(/:$/, ""))}</h3>`);
+    } else if ((m = line.match(/^[-*•]\s+(.*)$/))) {
+      if (list !== "ul") { closeList(); out.push("<ul>"); list = "ul"; }
+      out.push(`<li>${inline(m[1])}</li>`);
+    } else if ((m = line.match(/^\d+[.)]\s+(.*)$/))) {
+      if (list !== "ol") { closeList(); out.push("<ol>"); list = "ol"; }
+      out.push(`<li>${inline(m[1])}</li>`);
+    } else {
+      closeList(); out.push(`<p>${inline(line)}</p>`);
+    }
+  }
+  closeList();
+  return out.join("");
+}
+
+// ---------- copy ----------
+document.querySelectorAll("[data-copy]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const text = btn.dataset.copy === "notes" ? rawNotes : ($("transcript").classList.contains("placeholder") ? "" : $("transcript").textContent);
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // clipboard API needs a secure context; fall back to a hidden textarea
+      const ta = Object.assign(document.createElement("textarea"), { value: text });
+      document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove();
+    }
+    const label = btn.textContent;
+    btn.textContent = "Copied ✓";
+    setTimeout(() => (btn.textContent = label), 1200);
+  });
+});
+
+// ---------- history ----------
+function addHistory(transcript, notes, meta) {
   $("historyCard").hidden = false;
   const item = document.createElement("div");
   item.className = "history-item";
-  item.innerHTML = `<div></div><div class="meta"></div>`;
-  item.children[0].textContent = text;
-  item.children[1].textContent = `${new Date().toLocaleTimeString()} · ${meta}`;
+  const t = document.createElement("div");
+  t.textContent = transcript || "(empty)";
+  const m = document.createElement("div");
+  m.className = "meta";
+  m.textContent = `${new Date().toLocaleTimeString()} · ${meta}`;
+  item.append(t, m);
+  if (notes) {
+    const d = document.createElement("details");
+    d.innerHTML = `<summary>Structured notes</summary><div class="notes">${renderMarkdown(notes)}</div>`;
+    item.append(d);
+  }
   $("history").prepend(item);
 }
 
@@ -280,7 +461,7 @@ function startVisualizer(s) {
   audioCtx.createMediaStreamSource(s).connect(analyser);
   const data = new Uint8Array(analyser.fftSize);
   const ctx = canvas.getContext("2d");
-  const color = getComputedStyle(document.documentElement).getPropertyValue("--accent");
+  const color = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim();
 
   const draw = () => {
     canvas.width = canvas.clientWidth * devicePixelRatio;
@@ -308,7 +489,7 @@ function stopVisualizer() {
 }
 
 checkHealth();
-loadModels();
+setInterval(checkHealth, 30000);
 </script>
 </body>
 </html>

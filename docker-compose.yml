@@ -6,7 +6,6 @@ services:
     command: tritonserver --model-repository=/models --http-port=8003
     environment:
       - HF_TOKEN=${HF_TOKEN}
-      - MBAZA_ASR=DigitalUmuganda/Mbaza-ASR-Afrivoice-660h
       - NEMOTRON_ASR=nvidia/nemotron-3.5-asr-streaming-0.6b
       - NEMOTRON_TARGET_LANG=auto        # or en-US / fr-FR to pin a language
       - NEMOTRON_ATT_CONTEXT_SIZE=[56,13]  # 1.12s lookahead: best WER
@@ -39,7 +38,9 @@ services:
     image: ambient-scribe-api:latest
     container_name: fastapi-server
     environment:
-      - TRITON_URL=triton:8003      
+      - TRITON_URL=triton:8003
+      - VLLM_URL=http://vllm:8004/v1
+      - LLM_MODEL=google/gemma-3-4b-it
     volumes:
       - ./api:/app                     # live-edit app.py/utils.py without rebuilding
     ports:
@@ -48,3 +49,28 @@ services:
       triton:
         condition: service_healthy
 
+  vllm:
+    image: nvcr.io/nvidia/vllm:26.05.post1-py3
+    container_name: vllm-ambient
+    command: >
+      vllm serve google/gemma-3-4b-it
+      --gpu-memory-utilization 0.12
+      --max-model-len 16384
+      --language-model-only
+      --port 8004
+    ports:
+      - "8004:8004"
+    ipc: host
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+ 

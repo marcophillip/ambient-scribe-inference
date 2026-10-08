@@ -10,6 +10,7 @@ from pydub import AudioSegment
 import numpy as np
 from openai import OpenAI
 import os
+import re
 from prompts import CLINICAL_SYSTEM_PROMPT, NO_CLINICAL
 
 TARGET_SR = 16000
@@ -67,7 +68,7 @@ def blob_bytes_to_array(blob_bytes: bytes, target_sr: int = 16000) -> np.ndarray
 
     samples = np.array(audio.get_array_of_samples())
     # sample width depends on the source: wav/flac decode to int16, but
-    # browser webm/opus decodes to int32 -- normalize by the actual width
+    # browser webm/opus decodes to int32  normalize by the actual width
     full_scale = float(1 << (8 * audio.sample_width - 1))
     audio_float32 = samples.astype(np.float32) / full_scale
 
@@ -113,10 +114,28 @@ def structure_notes(
             {"role": "user", "content": f"Transcript:\n{raw_text}"},
         ],
         temperature=0.1,
-        max_tokens=1024,
+        max_tokens=6144,   # output includes the whole cleaned transcript
     )
 
     return (response.choices[0].message.content or "").strip()
+
+
+_BLOCK_RE = {
+    name: re.compile(rf"<{name}>\s*(.*?)\s*(?:</{name}>|$)", re.S)
+    for name in ("cleaned_transcript", "corrections", "clinical_note")
+}
+
+
+def parse_llm_output(text: str) -> dict:
+    """Split the model output into its <cleaned_transcript>, <corrections>
+    and <clinical_note> blocks. A missing closing tag (truncated output) still
+    yields the text up to the end; if there are no tags at all, the whole
+    output is treated as the clinical note."""
+    blocks = {name: (m.group(1).strip() if (m := rx.search(text)) else None)
+              for name, rx in _BLOCK_RE.items()}
+    if not any(blocks.values()):
+        blocks["clinical_note"] = text.strip() or NO_CLINICAL
+    return blocks
 
 
 #### for debugging stuff

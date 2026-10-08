@@ -7,7 +7,7 @@ services:
     environment:
       - HF_TOKEN=${HF_TOKEN}
       - NEMOTRON_ASR=nvidia/nemotron-3.5-asr-streaming-0.6b
-      - NEMOTRON_TARGET_LANG=auto        # or en-US / fr-FR to pin a language
+      - NEMOTRON_TARGET_LANG=auto        # en-US / fr-FR to pin a language
       - NEMOTRON_ATT_CONTEXT_SIZE=[56,13]  # 1.12s lookahead: best WER
     ports:
       - "8003:8003"   # HTTP
@@ -40,23 +40,50 @@ services:
     environment:
       - TRITON_URL=triton:8003
       - VLLM_URL=http://vllm:8004/v1
-      - LLM_MODEL=google/gemma-3-4b-it
+      - LLM_MODEL=Qwen/Qwen3.6-27B-FP8
+      - DATABASE_URL=postgresql://scribe:${POSTGRES_PASSWORD}@db:5432/ambient_scribe
+      - AUDIO_DIR=/data/audio
     volumes:
       - ./api:/app                     # live-edit app.py/utils.py without rebuilding
+      - ./data/audio:/data/audio       # saved consultation recordings
     ports:
       - "9000:9000"
     depends_on:
+      db:
+        condition: service_healthy
       triton:
         condition: service_healthy
+      vllm:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    container_name: ambient-db
+    environment:
+      - POSTGRES_DB=ambient_scribe
+      - POSTGRES_USER=scribe
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "127.0.0.1:5433:5432"         # localhost only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scribe -d ambient_scribe"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
   vllm:
     image: nvcr.io/nvidia/vllm:26.05.post1-py3
     container_name: vllm-ambient
     command: >
-      vllm serve google/gemma-3-4b-it
-      --gpu-memory-utilization 0.12
+      vllm serve Qwen/Qwen3.6-27B-FP8
+      --gpu-memory-utilization 0.5
       --max-model-len 16384
       --language-model-only
+      --default-chat-template-kwargs '{"enable_thinking": false}'
       --port 8004
     ports:
       - "8004:8004"
@@ -65,6 +92,13 @@ services:
       - HF_TOKEN=${HF_TOKEN}
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 900s
+    restart: unless-stopped
     deploy:
       resources:
         reservations:
@@ -72,5 +106,5 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    restart: unless-stopped
+
  

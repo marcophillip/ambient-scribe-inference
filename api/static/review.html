@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review · Ambient Scribe</title>
+<link rel="icon" href="static/moh-hic-logo.png">
+<link rel="stylesheet" href="static/css/app.css">
+</head>
+<body>
+<main class="page">
+  <div class="review-grid">
+    <!-- ------------------------------------------------ list -->
+    <section class="panel" aria-labelledby="listTitle">
+      <div class="panel-head">
+        <h2 id="listTitle">Consultations</h2>
+        <button class="btn btn-sm btn-ghost" id="refreshBtn" type="button">Refresh</button>
+      </div>
+      <div class="list-tools">
+        <div class="filter-tabs" role="group" aria-label="Filter by review status">
+          <button type="button" data-filter="pending" aria-pressed="true">Pending <span class="n" id="nPending"></span></button>
+          <button type="button" data-filter="reviewed" aria-pressed="false">Reviewed <span class="n" id="nReviewed"></span></button>
+          <button type="button" data-filter="all" aria-pressed="false">All <span class="n" id="nAll"></span></button>
+        </div>
+        <label class="search">
+          <span class="sr-only">Search transcripts and notes</span>
+          <span id="searchIcon"></span>
+          <input class="input" id="search" type="search" placeholder="Search transcripts and notes">
+        </label>
+      </div>
+      <div class="list" id="list" aria-live="polite"></div>
+    </section>
+
+    <!-- ------------------------------------------------ detail -->
+    <section class="panel" aria-label="Consultation detail">
+      <div class="detail" id="detail"></div>
+    </section>
+  </div>
+</main>
+
+<template id="detailTpl">
+  <div class="detail-head">
+    <h2 data-f="title"></h2>
+    <span data-f="pill"></span>
+    <div class="meta-list" data-f="meta"></div>
+  </div>
+
+  <div class="detail-section">
+    <p class="section-label">Recording</p>
+    <audio controls preload="metadata" data-f="audio"></audio>
+  </div>
+
+  <div class="detail-section">
+    <p class="section-label">Source</p>
+    <div class="tabs source-tabs" role="tablist" data-f="sourceTabs">
+      <button role="tab" data-tab="cleaned" aria-selected="true">Cleaned transcript</button>
+      <button role="tab" data-tab="raw" aria-selected="false">Raw transcript</button>
+    </div>
+    <div class="source" data-f="source"></div>
+  </div>
+
+  <div class="detail-section">
+    <p class="section-label">Clinical note</p>
+    <div class="compare">
+      <div class="box">
+        <div class="box-head"><span>AI-generated note</span><button class="btn btn-sm btn-ghost" type="button" data-f="copyNote">Copy</button></div>
+        <div class="box-body doc" data-f="note"></div>
+      </div>
+      <div class="box">
+        <div class="box-head"><span>Corrected note <span class="muted" style="font-weight:400">— edit if anything is wrong</span></span>
+          <button class="btn btn-sm btn-ghost" type="button" data-f="resetNote">Reset</button></div>
+        <textarea class="textarea mono" data-f="corrected" aria-label="Corrected clinical note" spellcheck="true"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <form class="detail-section" data-f="form" novalidate>
+    <p class="section-label">Validation</p>
+    <div class="form-grid">
+      <div class="field">
+        <span>Verdict</span>
+        <div class="segmented verdict" role="radiogroup" aria-label="Verdict">
+          <label><input type="radio" name="verdict" value="approved"><span>Approved</span></label>
+          <label><input type="radio" name="verdict" value="needs_correction"><span>Needs correction</span></label>
+          <label><input type="radio" name="verdict" value="rejected"><span>Rejected</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <span>Overall quality</span>
+        <div class="stars" role="radiogroup" aria-label="Rating from 1 to 5" data-f="stars"></div>
+      </div>
+      <div class="field full">
+        <span>Issues found</span>
+        <div class="issues">
+          <label class="check"><input type="checkbox" name="missing_info">Missing clinical information</label>
+          <label class="check"><input type="checkbox" name="invented_info">Invented information (not said)</label>
+          <label class="check"><input type="checkbox" name="wrong_medication">Wrong drug, dose or frequency</label>
+          <label class="check"><input type="checkbox" name="transcription_errors">Transcription errors</label>
+        </div>
+      </div>
+      <label class="field full">
+        <span>Comments</span>
+        <textarea class="textarea" name="comments" rows="3" placeholder="What was wrong or missing? Anything the team should know."></textarea>
+      </label>
+    </div>
+    <div class="row" style="margin-top:18px">
+      <span class="spacer"></span>
+      <button class="btn" type="submit" data-f="save">Save review</button>
+      <button class="btn btn-primary" type="button" data-f="saveNext">Save &amp; next pending</button>
+    </div>
+  </form>
+
+  <div class="detail-section" data-f="historySection" hidden>
+    <p class="section-label" data-f="historyLabel">Previous reviews</p>
+    <ul class="history" data-f="history"></ul>
+  </div>
+</template>
+
+<script type="module" src="static/js/review.js"></script>
+</body>
+</html>

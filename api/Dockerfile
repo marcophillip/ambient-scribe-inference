@@ -13,10 +13,13 @@ RUN pip install --no-cache-dir \
     numpy \
     tritonclient[http]\
     librosa\
-    openai
+    openai \
+    "psycopg[binary]" \
+    psycopg_pool \
+    pydantic
 
 WORKDIR /api
-COPY app.py utils.py prompts.py /api/
+COPY app.py utils.py prompts.py db.py schemas.py /api/
 COPY static /api/static
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "9000"]
